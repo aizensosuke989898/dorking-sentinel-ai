@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Search, LogOut, Settings, User, Download, MessageCircle } from 'lucide-react';
@@ -50,7 +51,7 @@ const Dashboard = () => {
       
       toast({
         title: 'Scan Complete',
-        description: `Found ${results.vulnerabilities.length} potential vulnerabilities.`,
+        description: `Found ${results.findings.length} potential vulnerabilities.`,
       });
     } catch (error) {
       toast({
@@ -188,7 +189,7 @@ const Dashboard = () => {
 
         {/* Modals */}
         {showAPISetup && <APIKeySetup onClose={() => setShowAPISetup(false)} />}
-        {showAIChat && <AIChat onClose={() => setShowAIChat(false)} />}
+        {showAIChat && <AIChat onClose={() => setShowAIChat(false)} scanResults={scanResults} />}
       </div>
     </ProtectedRoute>
   );

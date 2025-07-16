@@ -1,4 +1,3 @@
-
 interface ScanResult {
   type: string;
   url: string;
@@ -328,3 +327,12 @@ export class ScanningEngine {
     };
   }
 }
+
+// Export a convenience function for easier usage
+export const scanDomain = async (domain: string): Promise<any> => {
+  const searchApiKey = localStorage.getItem('google_search_api_key');
+  const githubToken = localStorage.getItem('github_token');
+  
+  const engine = new ScanningEngine(searchApiKey || undefined, githubToken || undefined);
+  return await engine.scanDomain(domain);
+};

@@ -34,6 +34,9 @@ export const validateDomain = (domain: string): boolean => {
   return domainRegex.test(cleanDomain);
 };
 
+// Export alias for backward compatibility
+export const isValidDomain = validateDomain;
+
 export const normalizeDomain = (domain: string): string => {
   let cleanDomain = domain.toLowerCase().trim();
   cleanDomain = cleanDomain.replace(/^https?:\/\//, '');
