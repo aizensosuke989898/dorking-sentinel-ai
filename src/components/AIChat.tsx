@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bot, Send, User, X, Minimize2 } from 'lucide-react';
@@ -6,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AIResponseGenerator } from '@/utils/aiResponses';
 
 interface Message {
   id: string;
@@ -14,7 +14,11 @@ interface Message {
   timestamp: Date;
 }
 
-const AIChat = () => {
+interface AIChatProps {
+  scanResults?: any;
+}
+
+const AIChat = ({ scanResults }: AIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -26,6 +30,7 @@ const AIChat = () => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [aiGenerator] = useState(() => new AIResponseGenerator());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -47,12 +52,20 @@ const AIChat = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsTyping(true);
 
-    // Simulate AI response
+    // Generate AI response with context
     setTimeout(() => {
-      const aiResponse = generateAIResponse(input);
+      const context = {
+        previousMessages: messages,
+        scanResults: scanResults,
+        userProfile: { name: 'User' }
+      };
+      
+      const aiResponse = aiGenerator.generateResponse(currentInput, context);
+      
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
@@ -62,40 +75,7 @@ const AIChat = () => {
       
       setMessages(prev => [...prev, aiMessage]);
       setIsTyping(false);
-    }, 1500);
-  };
-
-  const generateAIResponse = (userInput: string): string => {
-    const input = userInput.toLowerCase();
-    
-    // Security-focused responses
-    if (input.includes('api key') || input.includes('credential')) {
-      return "API keys and credentials should never be hardcoded in source code. Use environment variables, secret management systems like AWS Secrets Manager, or encrypted configuration files. If you've found exposed credentials, rotate them immediately and implement proper secret scanning in your CI/CD pipeline.";
-    }
-    
-    if (input.includes('jwt') || input.includes('token')) {
-      return "JWT tokens contain sensitive information and should be properly secured. Use strong, randomly generated secrets for signing, implement short expiration times, and consider using refresh tokens for longer sessions. Never expose JWT secrets in client-side code or public repositories.";
-    }
-    
-    if (input.includes('database') || input.includes('sql')) {
-      return "Database security involves multiple layers: use parameterized queries to prevent SQL injection, implement proper access controls with least privilege principles, encrypt sensitive data both at rest and in transit, and regularly update database software. Never expose database credentials in configuration files.";
-    }
-    
-    if (input.includes('scan') || input.includes('result')) {
-      return "Scan results should be analyzed by risk level. High-risk findings require immediate attention, while medium and low-risk items can be addressed in your next security sprint. Always validate findings to avoid false positives, and create a remediation plan with clear timelines.";
-    }
-    
-    if (input.includes('help') || input.includes('hello')) {
-      return "I'm here to help with cybersecurity questions! I can explain scan findings, provide security best practices, suggest remediation steps, and help you understand various types of vulnerabilities. What specific security topic would you like to discuss?";
-    }
-    
-    // Block malicious requests
-    if (input.includes('hack') || input.includes('exploit') || input.includes('attack')) {
-      return "I can only provide information for educational and defensive security purposes. I cannot assist with malicious activities, unauthorized access attempts, or any illegal activities. Please use this tool responsibly for legitimate security research and protection.";
-    }
-    
-    // Default educational response
-    return "That's an interesting cybersecurity question. For the most accurate and up-to-date security guidance, I recommend consulting official security frameworks like OWASP, NIST, or CIS Controls. Always ensure you're following responsible disclosure practices and only testing systems you own or have permission to assess.";
+    }, 1000 + Math.random() * 1000); // Variable response time
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

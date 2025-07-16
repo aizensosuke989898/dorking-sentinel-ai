@@ -9,6 +9,9 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import ScanResults from '@/components/ScanResults';
 import AIChat from '@/components/AIChat';
+import APIKeySetup from '@/components/APIKeySetup';
+import { validateDomain, normalizeDomain } from '@/utils/domainValidator';
+import { ScanningEngine } from '@/utils/scanningEngine';
 
 interface User {
   id: string;
@@ -23,6 +26,8 @@ const Dashboard = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResults, setScanResults] = useState<any>(null);
   const [showChat, setShowChat] = useState(false);
+  const [showAPISetup, setShowAPISetup] = useState(false);
+  const [scanningEngine, setScanningEngine] = useState<ScanningEngine | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -33,6 +38,18 @@ const Dashboard = () => {
       return;
     }
     setUser(JSON.parse(userData));
+
+    // Check if user wants to set up API keys on first visit
+    const hasSeenAPISetup = localStorage.getItem('hasSeenAPISetup');
+    if (!hasSeenAPISetup) {
+      setShowAPISetup(true);
+      localStorage.setItem('hasSeenAPISetup', 'true');
+    } else {
+      // Initialize scanning engine with stored API keys
+      const searchKey = localStorage.getItem('google_search_api_key') || '';
+      const githubToken = localStorage.getItem('github_token') || '';
+      setScanningEngine(new ScanningEngine(searchKey, githubToken));
+    }
   }, [navigate]);
 
   const handleLogout = () => {
@@ -46,9 +63,22 @@ const Dashboard = () => {
     navigate('/');
   };
 
-  const validateDomain = (domain: string) => {
-    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-    return domainRegex.test(domain);
+  const handleAPIKeysSet = (searchKey: string, githubToken: string) => {
+    setScanningEngine(new ScanningEngine(searchKey, githubToken));
+    setShowAPISetup(false);
+    toast({
+      title: 'API Keys Configured',
+      description: 'Real-time scanning is now enabled with your API keys.',
+    });
+  };
+
+  const handleSkipAPISetup = () => {
+    setScanningEngine(new ScanningEngine());
+    setShowAPISetup(false);
+    toast({
+      title: 'Mock Mode Enabled',
+      description: 'Scanner will use demonstration data for scan results.',
+    });
   };
 
   const handleScan = async () => {
@@ -61,10 +91,21 @@ const Dashboard = () => {
       return;
     }
 
-    if (!validateDomain(domain)) {
+    const normalizedDomain = normalizeDomain(domain);
+    
+    if (!validateDomain(normalizedDomain)) {
       toast({
         title: 'Invalid Domain',
-        description: 'Please enter a valid domain (e.g., example.com).',
+        description: 'Please enter a valid domain (e.g., example.com, github.com, google.com).',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!scanningEngine) {
+      toast({
+        title: 'Scanner Not Ready',
+        description: 'Please configure API keys or skip to use mock data.',
         variant: 'destructive'
       });
       return;
@@ -73,59 +114,21 @@ const Dashboard = () => {
     setIsScanning(true);
     
     try {
-      // Simulate scanning process
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      console.log(`Starting scan for domain: ${normalizedDomain}`);
+      const results = await scanningEngine.scanDomain(normalizedDomain);
       
-      // Mock scan results
-      const mockResults = {
-        domain: domain,
-        scanId: Math.random().toString(36),
-        timestamp: new Date().toISOString(),
-        findings: [
-          {
-            type: 'Exposed API Key',
-            url: `https://github.com/example/${domain}/blob/main/config.js`,
-            context: 'API_KEY="sk-1234567890abcdef"',
-            riskLevel: 5,
-            confidence: 0.95,
-            explanation: 'Hardcoded API key found in public repository. This could allow unauthorized access to services.'
-          },
-          {
-            type: 'Database Credentials',
-            url: `https://${domain}/admin/config.php`,
-            context: 'mysql://user:password@localhost/db',
-            riskLevel: 4,
-            confidence: 0.87,
-            explanation: 'Database connection string exposed. Could lead to data breach if accessible.'
-          },
-          {
-            type: 'JWT Secret',
-            url: `https://api.${domain}/env`,
-            context: 'JWT_SECRET=supersecretkey123',
-            riskLevel: 4,
-            confidence: 0.92,
-            explanation: 'JWT signing secret exposed. Attackers could forge authentication tokens.'
-          }
-        ],
-        summary: {
-          totalFindings: 3,
-          highRisk: 1,
-          mediumRisk: 2,
-          lowRisk: 0
-        }
-      };
-
-      setScanResults(mockResults);
+      setScanResults(results);
       
       toast({
         title: 'Scan Complete',
-        description: `Found ${mockResults.findings.length} potential security issues.`,
+        description: `Found ${results.findings.length} potential security issues for ${normalizedDomain}.`,
       });
 
     } catch (error) {
+      console.error('Scan error:', error);
       toast({
         title: 'Scan Failed',
-        description: 'An error occurred during the scan. Please try again.',
+        description: error instanceof Error ? error.message : 'An error occurred during the scan. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -190,6 +193,14 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8 flex gap-8">
         {/* Main Content */}
         <div className={`flex-1 transition-all duration-300 ${showChat ? 'mr-96' : ''}`}>
+          {/* API Setup */}
+          {showAPISetup && (
+            <APIKeySetup
+              onKeysSet={handleAPIKeysSet}
+              onSkip={handleSkipAPISetup}
+            />
+          )}
+
           {/* Scan Form */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -200,20 +211,31 @@ const Dashboard = () => {
               <div className="flex items-center space-x-3 mb-6">
                 <Scan className="h-6 w-6 text-purple-400" />
                 <h2 className="text-xl font-bold text-white">Domain Security Scanner</h2>
+                {!showAPISetup && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowAPISetup(true)}
+                    className="ml-auto border-purple-500 text-purple-400"
+                  >
+                    Configure API Keys
+                  </Button>
+                )}
               </div>
               
               <div className="space-y-4">
                 <div className="flex space-x-4">
                   <Input
-                    placeholder="Enter domain (e.g., example.com)"
+                    placeholder="Enter domain (e.g., example.com, github.com)"
                     value={domain}
                     onChange={(e) => setDomain(e.target.value)}
                     className="flex-1 bg-slate-700 border-slate-600 text-white"
                     disabled={isScanning}
+                    onKeyPress={(e) => e.key === 'Enter' && handleScan()}
                   />
                   <Button
                     onClick={handleScan}
-                    disabled={isScanning || !domain.trim()}
+                    disabled={isScanning || !domain.trim() || !scanningEngine}
                     className="bg-purple-600 hover:bg-purple-700 min-w-[120px]"
                   >
                     {isScanning ? 'Scanning...' : 'Start Scan'}
@@ -246,7 +268,7 @@ const Dashboard = () => {
                 <div className="flex items-center space-x-4">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
                   <div>
-                    <h3 className="text-white font-semibold">Scanning {domain}...</h3>
+                    <h3 className="text-white font-semibold">Scanning {normalizeDomain(domain)}...</h3>
                     <p className="text-gray-400 text-sm">
                       Running Google Dorks and GitHub reconnaissance queries
                     </p>
@@ -297,7 +319,7 @@ const Dashboard = () => {
         </div>
 
         {/* AI Chat Sidebar */}
-        {showChat && <AIChat />}
+        {showChat && <AIChat scanResults={scanResults} />}
       </div>
     </div>
   );
