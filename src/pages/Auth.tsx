@@ -76,6 +76,29 @@ const Auth = () => {
     
     if (!validateForm()) return;
 
+    // Prevent admin login through main form
+    if (formData.email.toLowerCase() === 'admin@gmail.com') {
+      const storedCreds = localStorage.getItem('adminCredentials');
+      if (!storedCreds) {
+        setErrors({ 
+          email: 'Access denied. Admin credentials not initialized. Use forgot password to set up admin access.' 
+        });
+        return;
+      }
+      
+      const { initialized } = JSON.parse(storedCreds);
+      if (!initialized) {
+        setErrors({ 
+          email: 'Access denied. Admin credentials not properly initialized.' 
+        });
+        return;
+      }
+      
+      // If admin credentials are set, redirect to admin auth
+      navigate('/admin-auth');
+      return;
+    }
+
     setLoading(true);
     setErrors({});
     
@@ -354,7 +377,7 @@ const Auth = () => {
               <div>
                 <button
                   type="button"
-                  onClick={() => navigate('/admin-auth')}
+                  onClick={() => navigate('/forgot-password')}
                   className="text-gray-500 hover:text-gray-400 text-xs"
                 >
                   Forgot password?
