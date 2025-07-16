@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminAuth = () => {
   const [formData, setFormData] = useState({
@@ -21,17 +22,20 @@ const AdminAuth = () => {
 
   useEffect(() => {
     // Check if regular user is logged in
-    const user = localStorage.getItem('user');
-    if (!user) {
-      navigate('/auth');
-    }
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/auth');
+      }
+    };
+    checkUser();
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Default admin credentials (in production, these would be hashed)
+    // Default admin credentials (in production, these would be hashed and stored securely)
     const validColor = '123456';
     const validSchool = 'crescent';
 

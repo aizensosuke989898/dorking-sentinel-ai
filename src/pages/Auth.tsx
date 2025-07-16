@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -29,6 +30,15 @@ const Auth = () => {
     if (!legalAccepted) {
       navigate('/');
     }
+
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate('/dashboard');
+      }
+    };
+    checkUser();
   }, [navigate]);
 
   const validateForm = () => {
@@ -67,47 +77,106 @@ const Auth = () => {
     if (!validateForm()) return;
 
     setLoading(true);
+    setErrors({});
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock authentication
-      const userData = {
-        id: Math.random().toString(36),
-        email: formData.email,
-        name: formData.name || formData.email.split('@')[0],
-        role: 'user',
-        createdAt: new Date().toISOString()
-      };
+      if (isLogin) {
+        // Login flow - check if user exists first
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
 
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      toast({
-        title: isLogin ? 'Login Successful' : 'Account Created',
-        description: `Welcome ${userData.name}! Redirecting to dashboard...`,
-      });
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            setErrors({ 
+              email: 'User not registered or invalid credentials. Please sign up first or check your credentials.' 
+            });
+          } else {
+            setErrors({ general: error.message });
+          }
+          return;
+        }
 
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1000);
+        if (data.user) {
+          toast({
+            title: 'Login Successful',
+            description: `Welcome back! Redirecting to dashboard...`,
+          });
 
-    } catch (error) {
-      toast({
-        title: 'Authentication Failed',
-        description: 'Please check your credentials and try again.',
-        variant: 'destructive'
-      });
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 1000);
+        }
+      } else {
+        // Registration flow
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: {
+              name: formData.name,
+            }
+          }
+        });
+
+        if (error) {
+          if (error.message.includes('User already registered')) {
+            setErrors({ 
+              email: 'User already registered. Please login instead.' 
+            });
+          } else {
+            setErrors({ general: error.message });
+          }
+          return;
+        }
+
+        if (data.user) {
+          toast({
+            title: 'Registration Successful',
+            description: 'Please check your email to verify your account, then you can login.',
+          });
+
+          // Switch to login mode after successful registration
+          setIsLogin(true);
+          setFormData({ email: formData.email, password: '', confirmPassword: '', name: '' });
+        }
+      }
+    } catch (error: any) {
+      setErrors({ general: 'An unexpected error occurred. Please try again.' });
+      console.error('Auth error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOAuthLogin = (provider: 'google' | 'github') => {
-    toast({
-      title: 'OAuth Login',
-      description: `${provider} authentication would be configured with Supabase`,
-    });
+  const handleOAuthLogin = async (provider: 'google' | 'github') => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+
+      if (error) {
+        toast({
+          title: 'OAuth Error',
+          description: `${provider} authentication failed. Please check your configuration.`,
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'OAuth Error',
+        description: `${provider} authentication failed. Please try again.`,
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -140,6 +209,16 @@ const Auth = () => {
         {/* Main Form */}
         <Card className="bg-slate-800/50 border-slate-700 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* General Error Display */}
+            {errors.general && (
+              <div className="bg-red-900/20 border border-red-600/50 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5" />
+                  <p className="text-red-200 text-sm">{errors.general}</p>
+                </div>
+              </div>
+            )}
+
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-white flex items-center space-x-2">
@@ -243,6 +322,7 @@ const Auth = () => {
                 variant="outline"
                 onClick={() => handleOAuthLogin('google')}
                 className="border-slate-600 text-white hover:bg-slate-700"
+                disabled={loading}
               >
                 <Chrome className="h-4 w-4 mr-2" />
                 Google
@@ -252,6 +332,7 @@ const Auth = () => {
                 variant="outline"
                 onClick={() => handleOAuthLogin('github')}
                 className="border-slate-600 text-white hover:bg-slate-700"
+                disabled={loading}
               >
                 <Github className="h-4 w-4 mr-2" />
                 GitHub
