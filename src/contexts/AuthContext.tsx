@@ -51,9 +51,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) {
       console.error('Error signing out:', error);
     } else {
-      // Clear admin status
+      // Clear admin status and API keys
       localStorage.removeItem('isOwner');
       localStorage.removeItem('adminAuthenticated');
+      sessionStorage.removeItem('apiKeys');
     }
   };
 
