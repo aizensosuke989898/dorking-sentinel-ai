@@ -18,7 +18,7 @@ export const useAdminConfig = () => {
 
   const loadAdminConfig = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('admin_config')
         .select('*')
         .single();
@@ -39,7 +39,7 @@ export const useAdminConfig = () => {
   const updateAdminConfig = async (config: Partial<AdminConfig>) => {
     try {
       if (adminConfig?.id) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('admin_config')
           .update({
             ...config,
@@ -49,7 +49,7 @@ export const useAdminConfig = () => {
 
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('admin_config')
           .insert([config]);
 

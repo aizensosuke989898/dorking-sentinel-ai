@@ -88,19 +88,19 @@ export const AdminDashboard = () => {
     setLoading(true);
     try {
       // Load users with profiles
-      const { data: profilesData } = await supabase
+      const { data: profilesData } = await (supabase as any)
         .from('user_profiles')
         .select('*');
 
       // Load scan logs
-      const { data: scanData } = await supabase
+      const { data: scanData } = await (supabase as any)
         .from('scan_logs')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
 
       // Load login history  
-      const { data: loginData } = await supabase
+      const { data: loginData } = await (supabase as any)
         .from('login_history')
         .select('*')
         .order('created_at', { ascending: false })
@@ -137,7 +137,7 @@ export const AdminDashboard = () => {
 
   const blockUser = async (userId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_profiles')
         .update({ is_blocked: true })
         .eq('user_id', userId);

@@ -21,24 +21,22 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      // Check if this is admin email
-      if (email.toLowerCase() === 'admin@gmail.com') {
-        // Check if admin credentials are already initialized
-        const storedCreds = localStorage.getItem('adminCredentials');
-        
-        if (storedCreds) {
-          const { initialized } = JSON.parse(storedCreds);
-          if (initialized) {
-            // Admin credentials already set, redirect to admin auth
-            navigate('/admin-auth');
-          } else {
-            // Admin credentials not properly initialized, go to setup
-            navigate('/admin-setup');
-          }
-        } else {
-          // First time admin setup
-          navigate('/admin-setup');
-        }
+      // Check if this is the current admin key from database or localStorage
+      const storedCreds = localStorage.getItem('adminCredentials');
+      let adminKey = 'admin@gmail.com'; // default
+      
+      if (storedCreds) {
+        const config = JSON.parse(storedCreds);
+        adminKey = config.adminKey || 'admin@gmail.com';
+      }
+      
+      if (email.toLowerCase() === adminKey.toLowerCase()) {
+        // This is admin access - redirect to admin login
+        navigate('/admin-auth');
+        toast({
+          title: "Admin Access",
+          description: "Redirecting to admin login..."
+        });
         return;
       }
 

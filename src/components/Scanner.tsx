@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { useApiKeys } from '@/hooks/useApiKeys';
 import { useToast } from '@/hooks/use-toast';
 import { scanDomain } from '@/utils/scanningEngine';
-import { ApiKeySetup } from './ApiKeySetup';
-import { ScanResults } from './ScanResults';
+import APIKeySetup from '@/components/APIKeySetup';
+import ScanResults from '@/components/ScanResults';
 
 export const Scanner = () => {
   const [domain, setDomain] = useState('');
@@ -162,10 +162,9 @@ export const Scanner = () => {
       {scanResults && <ScanResults results={scanResults} />}
 
       {/* API Setup Modal */}
-      <ApiKeySetup 
-        isOpen={showApiSetup}
-        onClose={() => setShowApiSetup(false)}
-      />
+      {showApiSetup && (
+        <APIKeySetup onClose={() => setShowApiSetup(false)} />
+      )}
     </div>
   );
 };
