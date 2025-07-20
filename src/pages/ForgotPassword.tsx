@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,28 +9,24 @@ import { Card } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAdminConfig } from '@/hooks/useAdminConfig';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { adminConfig, loading: configLoading } = useAdminConfig();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Check if this is the current admin key from database or localStorage
-      const storedCreds = localStorage.getItem('adminCredentials');
-      let adminKey = 'admin@gmail.com'; // default
+      // Check if this is the current admin key from database
+      const currentAdminKey = adminConfig?.admin_key || 'admin@gmail.com';
       
-      if (storedCreds) {
-        const config = JSON.parse(storedCreds);
-        adminKey = config.adminKey || 'admin@gmail.com';
-      }
-      
-      if (email.toLowerCase() === adminKey.toLowerCase()) {
+      if (email.toLowerCase() === currentAdminKey.toLowerCase()) {
         // This is admin access - redirect to admin login
         navigate('/admin-auth');
         toast({
@@ -115,13 +111,13 @@ const ForgotPassword = () => {
               />
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full bg-purple-600 hover:bg-purple-700"
-              disabled={loading}
-            >
-              {loading ? 'Sending...' : 'Send Reset Email'}
-            </Button>
+          <Button 
+            type="submit" 
+            className="w-full bg-purple-600 hover:bg-purple-700"
+            disabled={loading || configLoading}
+          >
+            {loading ? 'Sending...' : 'Send Reset Email'}
+          </Button>
           </form>
 
           <div className="mt-6 text-center">

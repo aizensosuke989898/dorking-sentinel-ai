@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,14 +14,29 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
 
   useEffect(() => {
     if (!loading) {
-      if (!user) {
+      if (!user && !requireAdmin) {
+        // Regular user route but no user logged in
         navigate('/auth');
       } else if (requireAdmin) {
+        // Admin route - check admin authentication
         const isOwner = localStorage.getItem('isOwner') === 'true';
         const adminAuth = localStorage.getItem('adminAuthenticated');
         
         if (!isOwner || !adminAuth) {
-          navigate('/dashboard');
+          // Not authenticated as admin, redirect to admin auth
+          navigate('/admin-auth');
+        } else {
+          // Check if admin session is still valid (24 hours)
+          const authTime = new Date(adminAuth).getTime();
+          const now = new Date().getTime();
+          const hoursDiff = (now - authTime) / (1000 * 60 * 60);
+          
+          if (hoursDiff > 24) {
+            // Admin session expired
+            localStorage.removeItem('isOwner');
+            localStorage.removeItem('adminAuthenticated');
+            navigate('/admin-auth');
+          }
         }
       }
     }
@@ -39,15 +53,26 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
     );
   }
 
-  if (!user) {
+  // For user routes, ensure user is logged in
+  if (!requireAdmin && !user) {
     return null; // Will redirect in useEffect
   }
 
+  // For admin routes, ensure admin is authenticated
   if (requireAdmin) {
     const isOwner = localStorage.getItem('isOwner') === 'true';
     const adminAuth = localStorage.getItem('adminAuthenticated');
     
     if (!isOwner || !adminAuth) {
+      return null; // Will redirect in useEffect
+    }
+
+    // Check if admin session is still valid
+    const authTime = new Date(adminAuth).getTime();
+    const now = new Date().getTime();
+    const hoursDiff = (now - authTime) / (1000 * 60 * 60);
+    
+    if (hoursDiff > 24) {
       return null; // Will redirect in useEffect
     }
   }

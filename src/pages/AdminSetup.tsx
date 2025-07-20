@@ -1,23 +1,23 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Key, AlertTriangle, Check } from 'lucide-react';
+import { Shield, Key, AlertTriangle, Check, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useAdminConfig } from '@/hooks/useAdminConfig';
 
 const AdminSetup = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [credentialsChanged, setCredentialsChanged] = useState(false);
   const [formData, setFormData] = useState({
     newEmail: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    adminKey: '',
+    secretKey: ''
   });
   const [loginData, setLoginData] = useState({
     email: '',
@@ -25,9 +25,19 @@ const AdminSetup = () => {
   });
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { adminConfig, updateAdminConfig, trackLoginAttempt } = useAdminConfig();
 
-  const handleCredentialChange = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // Check if admin already has valid credentials
+    if (adminConfig?.admin_password_hash && adminConfig?.admin_password_hash !== '') {
+      // Admin credentials already set, go directly to login
+      setStep(2);
+    }
+  }, [adminConfig]);
+
+  const handleCredentialSetup = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (formData.newPassword !== formData.confirmPassword) {
       toast({
         title: 'Password Mismatch',
@@ -48,15 +58,13 @@ const AdminSetup = () => {
 
     setLoading(true);
     try {
-      // Store new admin credentials securely
-      localStorage.setItem('adminCredentials', JSON.stringify({
-        email: formData.newEmail,
-        passwordHash: btoa(formData.newPassword), // Simple encoding for demo
-        initialized: true,
-        timestamp: new Date().toISOString()
-      }));
+      await updateAdminConfig({
+        admin_email: formData.newEmail,
+        admin_password_hash: btoa(formData.newPassword),
+        admin_key: formData.adminKey || formData.newEmail,
+        secret_key: formData.secretKey || '!@#$'
+      });
 
-      setCredentialsChanged(true);
       setStep(2);
       
       toast({
@@ -79,14 +87,16 @@ const AdminSetup = () => {
     setLoading(true);
 
     try {
-      const storedCreds = localStorage.getItem('adminCredentials');
-      if (!storedCreds) {
-        throw new Error('Admin credentials not initialized');
+      if (!adminConfig) {
+        throw new Error('Admin configuration not found');
       }
 
-      const { email, passwordHash } = JSON.parse(storedCreds);
+      const emailMatch = loginData.email === adminConfig.admin_email;
+      const passwordMatch = btoa(loginData.password) === adminConfig.admin_password_hash;
       
-      if (loginData.email === email && btoa(loginData.password) === passwordHash) {
+      if (emailMatch && passwordMatch) {
+        await trackLoginAttempt(true);
+        
         localStorage.setItem('isOwner', 'true');
         localStorage.setItem('adminAuthenticated', new Date().toISOString());
         
@@ -97,6 +107,8 @@ const AdminSetup = () => {
 
         navigate('/admin-dashboard');
       } else {
+        await trackLoginAttempt(false);
+        
         toast({
           title: 'Invalid Credentials',
           description: 'The admin credentials are incorrect.',
@@ -138,8 +150,8 @@ const AdminSetup = () => {
           </h1>
           <p className="text-gray-400">
             {step === 1 
-              ? 'Welcome, Admin. Please update your credentials for secure access.' 
-              : 'Enter your new admin credentials to continue.'
+              ? 'Welcome, Admin. Please set up your credentials for secure access.' 
+              : 'Enter your admin credentials to continue.'
             }
           </p>
         </div>
@@ -147,11 +159,11 @@ const AdminSetup = () => {
         {/* Step 1: Credential Setup */}
         {step === 1 && (
           <Card className="bg-slate-800/50 border-slate-700 p-8">
-            <form onSubmit={handleCredentialChange} className="space-y-6">
+            <form onSubmit={handleCredentialSetup} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="newEmail" className="text-white flex items-center space-x-2">
                   <Key className="h-4 w-4" />
-                  <span>New Admin Email</span>
+                  <span>Admin Email</span>
                 </Label>
                 <Input
                   id="newEmail"
@@ -159,15 +171,31 @@ const AdminSetup = () => {
                   value={formData.newEmail}
                   onChange={(e) => setFormData(prev => ({ ...prev, newEmail: e.target.value }))}
                   className="bg-slate-700 border-slate-600 text-white"
-                  placeholder="Enter new admin email"
+                  placeholder="Enter admin email"
                   required
                 />
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="adminKey" className="text-white flex items-center space-x-2">
+                  <Key className="h-4 w-4" />
+                  <span>Admin Key (Forgot Password Access)</span>
+                </Label>
+                <Input
+                  id="adminKey"
+                  type="text"
+                  value={formData.adminKey}
+                  onChange={(e) => setFormData(prev => ({ ...prev, adminKey: e.target.value }))}
+                  className="bg-slate-700 border-slate-600 text-white"
+                  placeholder="Enter admin key (default: your email)"
+                />
+                <p className="text-gray-400 text-xs">This key triggers admin access in forgot password</p>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="newPassword" className="text-white flex items-center space-x-2">
                   <Key className="h-4 w-4" />
-                  <span>New Admin Password</span>
+                  <span>Admin Password</span>
                 </Label>
                 <Input
                   id="newPassword"
@@ -175,7 +203,7 @@ const AdminSetup = () => {
                   value={formData.newPassword}
                   onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
                   className="bg-slate-700 border-slate-600 text-white"
-                  placeholder="Enter new admin password"
+                  placeholder="Enter admin password"
                   required
                 />
               </div>
@@ -191,9 +219,25 @@ const AdminSetup = () => {
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                   className="bg-slate-700 border-slate-600 text-white"
-                  placeholder="Confirm new admin password"
+                  placeholder="Confirm admin password"
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="secretKey" className="text-white flex items-center space-x-2">
+                  <Key className="h-4 w-4" />
+                  <span>Secret Recovery Key</span>
+                </Label>
+                <Input
+                  id="secretKey"
+                  type="password"
+                  value={formData.secretKey}
+                  onChange={(e) => setFormData(prev => ({ ...prev, secretKey: e.target.value }))}
+                  className="bg-slate-700 border-slate-600 text-white"
+                  placeholder="Enter secret key (default: !@#$)"
+                />
+                <p className="text-gray-400 text-xs">Used to unlock admin after 5 failed attempts</p>
               </div>
 
               <Button 
@@ -201,7 +245,7 @@ const AdminSetup = () => {
                 className="w-full bg-red-600 hover:bg-red-700"
                 disabled={loading}
               >
-                {loading ? 'Updating...' : 'Update Credentials'}
+                {loading ? 'Setting up...' : 'Setup Admin Credentials'}
               </Button>
             </form>
           </Card>
@@ -214,7 +258,7 @@ const AdminSetup = () => {
               <div className="flex items-start space-x-3">
                 <Check className="h-5 w-5 text-green-400 mt-0.5" />
                 <p className="text-green-200 text-sm">
-                  Admin credentials have been successfully updated. Please login with your new credentials.
+                  Admin credentials are configured. Please login with your credentials.
                 </p>
               </div>
             </div>
@@ -260,6 +304,17 @@ const AdminSetup = () => {
                 {loading ? 'Authenticating...' : 'Access Admin Dashboard'}
               </Button>
             </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="text-gray-400 hover:text-gray-300 text-sm flex items-center justify-center space-x-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to Setup</span>
+              </button>
+            </div>
           </Card>
         )}
 
@@ -269,8 +324,8 @@ const AdminSetup = () => {
             <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5" />
             <div>
               <p className="text-red-200 text-sm">
-                <strong>Security:</strong> This is a one-time setup process. After completing this setup,
-                you must use your new credentials for all future admin access.
+                <strong>Security:</strong> These credentials will be used for all future admin access.
+                Make sure to remember them securely.
               </p>
             </div>
           </div>

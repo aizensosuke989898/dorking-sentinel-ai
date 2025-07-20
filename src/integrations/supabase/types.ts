@@ -14,13 +14,181 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admin_config: {
+        Row: {
+          admin_email: string
+          admin_key: string
+          admin_password_hash: string
+          created_at: string | null
+          failed_attempts_count: number | null
+          id: string
+          is_locked: boolean | null
+          last_failed_attempt: string | null
+          secret_key: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_email?: string
+          admin_key?: string
+          admin_password_hash?: string
+          created_at?: string | null
+          failed_attempts_count?: number | null
+          id?: string
+          is_locked?: boolean | null
+          last_failed_attempt?: string | null
+          secret_key?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_email?: string
+          admin_key?: string
+          admin_password_hash?: string
+          created_at?: string | null
+          failed_attempts_count?: number | null
+          id?: string
+          is_locked?: boolean | null
+          last_failed_attempt?: string | null
+          secret_key?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      admin_login_attempts: {
+        Row: {
+          attempted_at: string | null
+          created_at: string | null
+          id: string
+          ip_address: string
+          success: boolean | null
+          user_agent: string | null
+        }
+        Insert: {
+          attempted_at?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address: string
+          success?: boolean | null
+          user_agent?: string | null
+        }
+        Update: {
+          attempted_at?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: string
+          success?: boolean | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      login_history: {
+        Row: {
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          login_successful: boolean | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          login_successful?: boolean | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          login_successful?: boolean | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      scan_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          results: Json | null
+          scan_type: string
+          status: string
+          target_domain: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          results?: Json | null
+          scan_type: string
+          status?: string
+          target_domain: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          results?: Json | null
+          scan_type?: string
+          status?: string
+          target_domain?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          is_blocked: boolean | null
+          name: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_blocked?: boolean | null
+          name?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_blocked?: boolean | null
+          name?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      log_user_login: {
+        Args: {
+          p_user_id: string
+          p_ip_address: string
+          p_user_agent?: string
+          p_success?: boolean
+        }
+        Returns: undefined
+      }
+      track_admin_login_attempt: {
+        Args: {
+          p_ip_address: string
+          p_user_agent?: string
+          p_success?: boolean
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
