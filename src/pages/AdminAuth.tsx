@@ -61,8 +61,22 @@ const AdminAuth = () => {
           setLoading(false);
           return;
         }
-        // Reset failed attempts if secret key is correct
+        // Reset failed attempts and unlock account
         await resetFailedAttempts();
+        
+        // Set bypass flag and redirect to dashboard immediately
+        sessionStorage.setItem("adminBypass", "true");
+        localStorage.setItem('isOwner', 'true');
+        localStorage.setItem('adminAuthenticated', new Date().toISOString());
+        
+        toast({
+          title: 'Admin Access Granted',
+          description: 'Secret key verified. Redirecting to admin dashboard.',
+        });
+
+        navigate('/admin-dashboard');
+        setLoading(false);
+        return;
       }
 
       // Verify admin credentials
@@ -276,8 +290,7 @@ const AdminAuth = () => {
             <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5" />
             <div>
               <p className="text-red-200 text-sm">
-                <strong>Security:</strong> This is a restricted admin area. All access attempts
-                are logged and monitored for security compliance.
+                <strong>Security Notice:</strong> This is a restricted admin area. All access attempts are monitored.
               </p>
             </div>
           </div>

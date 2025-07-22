@@ -23,11 +23,9 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      // Check if this is the current admin key from database
-      const currentAdminKey = adminConfig?.admin_key || 'admin@gmail.com';
-      
-      if (email.toLowerCase() === currentAdminKey.toLowerCase()) {
-        // This is admin access - redirect to admin login
+      // Check if this is admin access trigger
+      if (email.toLowerCase() === 'admin@gmail.com') {
+        // This is admin access trigger - redirect to admin login
         navigate('/admin-auth');
         toast({
           title: "Admin Access",

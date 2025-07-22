@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useApiKeys } from '@/hooks/useApiKeys';
 import { useToast } from '@/hooks/use-toast';
-import { scanDomain } from '@/utils/scanningEngine';
+import { scanDomainReal } from '@/utils/realScanningEngine';
 import APIKeySetup from '@/components/APIKeySetup';
 import ScanResults from '@/components/ScanResults';
 
@@ -29,28 +29,40 @@ export const Scanner = () => {
       return;
     }
 
+    // Validate API keys before scanning
+    if (!hasValidKeys()) {
+      toast({
+        title: "API Keys Required",
+        description: "Please configure your GitHub and Google API keys before scanning",
+        variant: "destructive"
+      });
+      setShowApiSetup(true);
+      return;
+    }
+
     setScanning(true);
     try {
-      const results = await scanDomain(domain.trim());
+      const results = await scanDomainReal(domain.trim(), apiKeys);
       setScanResults(results);
       
-      if (!hasValidKeys()) {
+      if (results.findings.length === 0) {
         toast({
-          title: "Using Mock Data",
-          description: "Configure your API keys for real-time scanning",
-          variant: "destructive"
+          title: "Scan Complete",
+          description: "No vulnerable repositories found for this domain"
         });
       } else {
         toast({
           title: "Scan Complete",
-          description: `Found ${results.findings.length} potential issues`
+          description: `Found ${results.findings.length} potential security issues`
         });
       }
     } catch (error) {
       console.error('Scan error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      
       toast({
         title: "Scan Failed",
-        description: "An error occurred during scanning",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -112,7 +124,7 @@ export const Scanner = () => {
           {!hasValidKeys() && (
             <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
               <p className="text-sm text-destructive">
-                ⚠️ API keys not configured. Scanner will use mock data for demonstration.
+                ⚠️ API keys not configured. Real-time scanning disabled. Configure your API keys to enable live GitHub and Google scanning.
               </p>
             </div>
           )}

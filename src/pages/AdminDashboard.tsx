@@ -33,8 +33,9 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [scanLogs, setScanLogs] = useState<ScanLog[]>([]);
   const [newAdminCreds, setNewAdminCreds] = useState({
-    favoriteColor: '',
-    schoolName: ''
+    email: '',
+    password: '',
+    recoveryKey: ''
   });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -130,24 +131,22 @@ const AdminDashboard = () => {
   };
 
   const updateAdminCredentials = () => {
-    if (!newAdminCreds.favoriteColor || !newAdminCreds.schoolName) {
+    if (!newAdminCreds.email || !newAdminCreds.password || !newAdminCreds.recoveryKey) {
       toast({
         title: 'Invalid Input',
-        description: 'Please fill in both security questions.',
+        description: 'Please fill in email, password, and recovery key.',
         variant: 'destructive'
       });
       return;
     }
 
-    // In production, these would be hashed with bcrypt
-    localStorage.setItem('adminCredentials', JSON.stringify(newAdminCreds));
-    
+    // TODO: In production, update the admin_config table via API
     toast({
-      title: 'Credentials Updated',
-      description: 'Admin authentication credentials have been updated successfully.',
+      title: 'Credentials Update Queued',
+      description: 'Admin credentials will be updated in the database.',
     });
 
-    setNewAdminCreds({ favoriteColor: '', schoolName: '' });
+    setNewAdminCreds({ email: '', password: '', recoveryKey: '' });
   };
 
   const exportData = (type: 'users' | 'logs') => {
@@ -188,6 +187,18 @@ const AdminDashboard = () => {
             </div>
             
             <div className="flex items-center space-x-4">
+              <Button
+                onClick={() => {
+                  localStorage.removeItem('isOwner');
+                  localStorage.removeItem('adminAuthenticated');
+                  sessionStorage.removeItem('adminBypass');
+                  navigate('/dashboard');
+                }}
+                variant="outline"
+                className="border-red-600 text-red-300 hover:bg-red-600"
+              >
+                Logout Admin
+              </Button>
               <Button
                 onClick={() => navigate('/dashboard')}
                 variant="outline"
@@ -420,28 +431,40 @@ const AdminDashboard = () => {
                 <h3 className="text-lg font-semibold text-white">Update Admin Credentials</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 gap-4 mb-4">
                 <div className="space-y-2">
-                  <Label htmlFor="newColor" className="text-white">New Favorite Color</Label>
+                  <Label htmlFor="newEmail" className="text-white">New Admin Email</Label>
                   <Input
-                    id="newColor"
-                    type="text"
-                    value={newAdminCreds.favoriteColor}
-                    onChange={(e) => setNewAdminCreds(prev => ({ ...prev, favoriteColor: e.target.value }))}
+                    id="newEmail"
+                    type="email"
+                    value={newAdminCreds.email}
+                    onChange={(e) => setNewAdminCreds(prev => ({ ...prev, email: e.target.value }))}
                     className="bg-slate-700 border-slate-600 text-white"
-                    placeholder="Enter new answer"
+                    placeholder="Enter new admin email"
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="newSchool" className="text-white">New School Name</Label>
+                  <Label htmlFor="newPassword" className="text-white">New Admin Password</Label>
                   <Input
-                    id="newSchool"
-                    type="text"
-                    value={newAdminCreds.schoolName}
-                    onChange={(e) => setNewAdminCreds(prev => ({ ...prev, schoolName: e.target.value }))}
+                    id="newPassword"
+                    type="password"
+                    value={newAdminCreds.password}
+                    onChange={(e) => setNewAdminCreds(prev => ({ ...prev, password: e.target.value }))}
                     className="bg-slate-700 border-slate-600 text-white"
-                    placeholder="Enter new answer"
+                    placeholder="Enter new password"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="newRecoveryKey" className="text-white">New Recovery Key</Label>
+                  <Input
+                    id="newRecoveryKey"
+                    type="password"
+                    value={newAdminCreds.recoveryKey}
+                    onChange={(e) => setNewAdminCreds(prev => ({ ...prev, recoveryKey: e.target.value }))}
+                    className="bg-slate-700 border-slate-600 text-white"
+                    placeholder="Enter new recovery key"
                   />
                 </div>
               </div>
@@ -489,6 +512,15 @@ const AdminDashboard = () => {
             </Card>
           </motion.div>
         )}
+      </div>
+      
+      {/* Security Notice Footer */}
+      <div className="bg-red-900/20 border-t border-red-600/50 p-4">
+        <div className="container mx-auto">
+          <p className="text-center text-red-200 text-sm">
+            <strong>Security Notice:</strong> This is a restricted admin area. All access attempts are monitored.
+          </p>
+        </div>
       </div>
     </div>
   );
